@@ -20,7 +20,7 @@ internal static class BeastsHelpers
 
     public static Vector4 ToImGuiColor(Color color) => new(color.R / 255f, color.G / 255f, color.B / 255f, color.A / 255f);
 
-    public static uint ToImGuiColorU32(Color color) => ImGuiNET.ImGui.ColorConvertFloat4ToU32(ToImGuiColor(color));
+    public static uint ToImGuiColorU32(Color color) => ImGui.ColorConvertFloat4ToU32(ToImGuiColor(color));
 
     public static string PluralSuffix(int count) => count == 1 ? string.Empty : "s";
 

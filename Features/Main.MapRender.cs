@@ -10,7 +10,6 @@ using ExileCore.PoEMemory.Elements.InventoryElements;
 using ExileCore.PoEMemory.MemoryObjects;
 using ExileCore.Shared.Enums;
 using GameOffsets.Native;
-using ImGuiNET;
 using SharpDX;
 using Color = SharpDX.Color;
 using RectangleF = SharpDX.RectangleF;

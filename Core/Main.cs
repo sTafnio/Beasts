@@ -6,12 +6,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using ExileCore;
-using ExileCore.PoEMemory.Components;
 using ExileCore.PoEMemory;
+using ExileCore.PoEMemory.Components;
 using ExileCore.PoEMemory.MemoryObjects;
 using ExileCore.Shared.Enums;
 using ExileCore.Shared.Nodes;
-using ImGuiNET;
 using Newtonsoft.Json.Linq;
 using SharpDX;
 using Color = SharpDX.Color;
@@ -692,9 +691,9 @@ public partial class Main : BaseSettingsPlugin<Settings>
             ImGuiWindowFlags.NoMove;
 
         ImGui.Begin(windowId, flags);
-        ImGui.SetWindowFontScale(textScale);
+        ImGui.PushFont(null, ImGui.GetStyle().FontSizeBase * textScale);
         ImGui.TextColored(BeastsHelpers.ToImGuiColor(textColor), text);
-        ImGui.SetWindowFontScale(1f);
+        ImGui.PopFont();
         ImGui.End();
 
         ImGui.PopStyleVar(3);

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using ImGuiNET;
 using SharpDX;
 using Color = SharpDX.Color;
 using RectangleF = SharpDX.RectangleF;

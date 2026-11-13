@@ -1,5 +1,4 @@
 using System.Globalization;
-using ImGuiNET;
 using Vector4 = System.Numerics.Vector4;
 
 namespace Beasts;

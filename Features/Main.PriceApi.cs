@@ -6,7 +6,6 @@ using System.Net.Http;
 using System.Numerics;
 using System.Threading.Tasks;
 using ExileCore;
-using ImGuiNET;
 using Newtonsoft.Json;
 
 namespace Beasts;
@@ -134,7 +133,7 @@ public partial class Main
             var league = Uri.EscapeDataString(Settings.BeastPrices.League.Value?.Trim() ?? "Mirage");
 
             var beastUrl = BuildPoeNinjaOverviewUrl(league, "Beast");
-                
+
             var beastJson = await HttpClient.GetStringAsync(beastUrl);
             var beastResponse = JsonConvert.DeserializeObject<PoeNinjaOverviewResponse>(beastJson);
             if (beastResponse?.Lines == null) return;
