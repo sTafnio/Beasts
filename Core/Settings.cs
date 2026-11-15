@@ -77,8 +77,32 @@ public class BeastPricesSettings
             : new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
     }
 
-    [Menu("Tracked Beasts", "Pick which beasts are considered valuable. Enabled beasts appear in map markers, are counted in analytics, and are included in the auto-generated Bestiary search regex.")]
+    // Per-beast style overrides (text color, font size, circle color, circle size), keyed by beast name.
+    // A beast without an entry, or a null field, uses the global setting.
+    [IgnoreMenu]
+    public Dictionary<string, BeastStyle> BeastStyles { get; set; } = new(System.StringComparer.OrdinalIgnoreCase);
+
+    [Menu("Tracked Beasts", "Pick which beasts are considered valuable, and optionally give each one its own text color, font size, circle color and circle size. Enabled beasts appear in map markers, are counted in analytics, and are included in the auto-generated Bestiary search regex.")]
     [JsonIgnore] public CustomNode BeastPickerPanel { get; set; } = new();
+}
+
+/// <summary>Per-beast overrides. Null means "use the global setting".</summary>
+public sealed class BeastStyle
+{
+    /// <summary>Name text color for world and large-map labels, as #RRGGBBAA.</summary>
+    public string TextColor { get; set; }
+
+    /// <summary>Font size in pixels for world and large-map labels.</summary>
+    public int? FontSize { get; set; }
+
+    /// <summary>Ground circle color while the beast is not being captured, as #RRGGBBAA.</summary>
+    public string CircleColor { get; set; }
+
+    /// <summary>Ground circle radius in world units.</summary>
+    public float? CircleRadius { get; set; }
+
+    [JsonIgnore]
+    public bool IsEmpty => TextColor == null && FontSize == null && CircleColor == null && CircleRadius == null;
 }
 
 [Submenu(CollapsedByDefault = true)]
@@ -103,24 +127,58 @@ public class MapRenderSettings
     [Menu("Show World Labels", "Draw floating name labels and ground circles on tracked beasts directly in the 3D game world.")]
     public ToggleNode ShowBeastLabelsInWorld { get; set; } = new(true);
 
+    [Menu("Large Map Labels", "Beast names on the large map overlay (the Tab map): on/off, price, background, color, font size and position.")]
+    public LargeMapLabelSettings LargeMapLabels { get; set; } = new();
+
     [Menu("Show Tracked Beasts Window", "Show a small floating window that lists all currently alive tracked beasts in the area with their names, prices, and capture status.")]
     public ToggleNode ShowTrackedBeastsWindow { get; set; } = new(true);
 
     [Menu("Show Prices On Captured Beasts", "Show the poe.ninja price on captured beast items in your inventory, stash, and the Bestiary captured-beasts panel.")]
     public ToggleNode ShowPricesOnCapturedBeasts { get; set; } = new(true);
 
-    [Menu("Only Show Enabled Beasts", "When on, only beasts you have checked in Price Data → Enabled Beasts are shown on markers, overlays, and the tracked beasts window. When off, all rare beasts are shown.")]
+    [Menu("Only Show Enabled Beasts", "When on, only beasts you have checked in Price Data → Enabled Beasts are shown on markers, overlays, and the tracked beasts window. When off, every recognised beast (rare or unique) is shown.")]
     public ToggleNode ShowEnabledOnly { get; set; } = new(true);
 
     [Menu("Captured Status Text", "Customize the text and colors shown on beast labels during the two capture stages: the initial capture-in-progress and the final safe-to-leave captured state.")]
     public CapturedTextDisplaySettings CapturedText { get; set; } = new();
 
-    [Menu("Colors", "Customize all colors used by in-world beast labels, large-map markers, ground circles, and the tracked beasts window.")]
+    [Menu("Colors", "Customize the colors used by in-world beast labels, ground circles, and the tracked beasts window. Large map label colors are under Large Map Labels.")]
     public MapRenderColorSettings Colors { get; set; } = new();
 
-    [Menu("Layout", "Adjust sizes, spacing, padding, and thickness for in-world beast labels, ground circles, and large-map label backgrounds.")]
+    [Menu("Layout", "Adjust font size, spacing, and circle size, thickness and fill for in-world beast labels and ground circles.")]
     public MapRenderLayoutSettings Layout { get; set; } = new();
 
+}
+
+[Submenu(CollapsedByDefault = true)]
+public class LargeMapLabelSettings
+{
+    [Menu("Show Large Map Labels", "Draw tracked beast names on the large map overlay (Tab), the way MinimapIcons draws unique monster names. Beasts that walked out of range stay labelled at their last known position.")]
+    public ToggleNode Show { get; set; } = new(true);
+
+    [Menu("Show Price", "Add the poe.ninja price after the beast name on large map labels.")]
+    public ToggleNode ShowPrice { get; set; } = new(true);
+
+    [Menu("Show Background", "Draw a filled box behind large map labels. When off, the text gets an outline instead (World Text Outline Color).")]
+    public ToggleNode ShowBackground { get; set; } = new(false);
+
+    [Menu("Text Color", "Name color on large map labels. A beast with its own text color in Price Data → Tracked Beasts uses that instead.")]
+    public ColorNode TextColor { get; set; } = new(Color.White);
+
+    [Menu("Background Color", "Color of the box behind large map labels when Show Background is on.")]
+    public ColorNode BackgroundColor { get; set; } = new(new Color(0, 0, 0, 200));
+
+    [Menu("Font Size", "Font size in pixels for large map labels. A beast with its own font size in Price Data → Tracked Beasts uses that instead.")]
+    public RangeNode<int> FontSize { get; set; } = new(16, 8, 64);
+
+    [Menu("Height Offset", "Moves the label up (negative) or down (positive) from the beast's position on the map, in pixels.")]
+    public RangeNode<float> VerticalOffset { get; set; } = new(-14f, -80f, 80f);
+
+    [Menu("Background Padding X", "Horizontal padding in pixels between the text and the edge of the background box.")]
+    public RangeNode<float> PaddingX { get; set; } = new(4f, 0f, 20f);
+
+    [Menu("Background Padding Y", "Vertical padding in pixels between the text and the edge of the background box.")]
+    public RangeNode<float> PaddingY { get; set; } = new(2f, 0f, 20f);
 }
 
 [Submenu(CollapsedByDefault = true)]
@@ -145,7 +203,7 @@ public class CapturedTextDisplaySettings
 [Submenu(CollapsedByDefault = true)]
 public class MapRenderColorSettings
 {
-    [Menu("World Beast Text Color", "Name text color for tracked beasts in the 3D world that have not been captured yet.")]
+    [Menu("World Beast Text Color", "Name text color for tracked beasts in the 3D world that have not been captured yet. A beast with its own text color in Price Data → Tracked Beasts uses that instead.")]
     public ColorNode WorldBeastColor { get; set; } = new(new Color(180, 20, 20, 255));
 
     [Menu("World Captured Beast Text Color", "Name text color for tracked beasts in the 3D world that are currently being captured or have already been safely captured.")]
@@ -154,10 +212,10 @@ public class MapRenderColorSettings
     [Menu("World Price Text Color", "Color of the price text shown below beast names on in-world labels.")]
     public ColorNode WorldPriceTextColor { get; set; } = new(new Color(255, 235, 120, 255));
 
-    [Menu("World Text Outline Color", "Color of the outline drawn behind all in-world label text to keep it readable against bright or busy backgrounds.")]
+    [Menu("World Text Outline Color", "Color of the outline drawn behind in-world label text (and large map labels without a background) to keep it readable against bright or busy backgrounds.")]
     public ColorNode WorldTextOutlineColor { get; set; } = new(Color.Black);
 
-    [Menu("World Beast Circle Color", "Color of the ground circle drawn around tracked beasts that have not been captured yet.")]
+    [Menu("World Beast Circle Color", "Color of the ground circle drawn around tracked beasts that have not been captured yet. A beast with its own circle color in Price Data → Tracked Beasts uses that instead.")]
     public ColorNode WorldBeastCircleColor { get; set; } = new(new Color(180, 20, 20, 255));
 
     [Menu("World Capture Circle Color", "Color of the ground circle while a beast is actively being captured (first stage).")]
@@ -166,34 +224,27 @@ public class MapRenderColorSettings
     [Menu("World Catched Circle Color", "Color of the ground circle after a beast is fully captured and it is safe to leave the map (second stage).")]
     public ColorNode WorldCapturedCircleColor { get; set; } = new(new Color(120, 220, 255, 255));
 
-    [Menu("Map Label Text Color", "Primary text color for beast labels shown on the large overlay map.")]
-    public ColorNode MapMarkerTextColor { get; set; } = new(new Color(180, 20, 20, 255));
-
-    [Menu("Map Label Background Color", "Background color of the label box behind beast text on the large overlay map.")]
-    public ColorNode MapMarkerBackgroundColor { get; set; } = new(new Color(0, 0, 0, 230));
-
-    [Menu("Tracked Window Beast Color", "Text color for beast names in the floating tracked beasts window.")]
+    [Menu("Tracked Window Beast Color", "Text color for beast names in the floating tracked beasts window. A beast with its own text color in Price Data → Tracked Beasts uses that instead.")]
     public ColorNode TrackedWindowBeastColor { get; set; } = new(new Color(180, 20, 20, 255));
 }
 
 [Submenu(CollapsedByDefault = true)]
 public class MapRenderLayoutSettings
 {
-    [Menu("World Label Line Spacing", "Vertical spacing in pixels between lines on in-world beast labels (name, price, capture status).")]
+    [Menu("World Label Font Size", "Font size in pixels for in-world beast labels (name, price, capture status). A beast with its own font size in Price Data → Tracked Beasts uses that instead.")]
+    public RangeNode<int> WorldLabelFontSize { get; set; } = new(16, 8, 64);
+
+    [Menu("World Label Line Spacing", "Vertical spacing in pixels between lines on in-world beast labels (name, price, capture status), at the 16 px font size. It grows and shrinks with the font size.")]
     public RangeNode<float> WorldTextLineSpacing { get; set; } = new(18f, 8f, 40f);
 
-    [Menu("World Beast Circle Radius", "Radius of the ground circle drawn around tracked beasts in the 3D world, in screen pixels.")]
-    public RangeNode<float> WorldBeastCircleRadius { get; set; } = new(80f, 20f, 200f);
+    [Menu("World Beast Circle Radius", "Radius of the ground circle drawn around tracked beasts, in game world units (it scales with the camera like the game's own ground effects). A beast with its own circle size in Price Data → Tracked Beasts uses that instead.")]
+    public RangeNode<float> WorldBeastCircleRadius { get; set; } = new(80f, 20f, MaxCircleRadius);
+
+    internal const float MaxCircleRadius = 800f;
 
     [Menu("World Circle Outline Thickness", "Thickness of the ground circle outline in pixels.")]
     public RangeNode<float> WorldBeastCircleOutlineThickness { get; set; } = new(2f, 1f, 8f);
 
     [Menu("World Circle Fill Opacity (%)", "How opaque the filled area inside the ground circle is. 0 = fully transparent, 100 = fully solid.")]
     public RangeNode<int> WorldBeastCircleFillOpacityPercent { get; set; } = new(20, 0, 100);
-
-    [Menu("Map Label Padding X", "Horizontal padding in pixels between beast text and the edge of its label background on the large map.")]
-    public RangeNode<float> MapLabelPaddingX { get; set; } = new(4f, 0f, 20f);
-
-    [Menu("Map Label Padding Y", "Vertical padding in pixels between beast text and the edge of its label background on the large map.")]
-    public RangeNode<float> MapLabelPaddingY { get; set; } = new(2f, 0f, 20f);
 }

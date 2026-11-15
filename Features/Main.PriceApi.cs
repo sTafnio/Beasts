@@ -42,50 +42,203 @@ public partial class Main
     private bool _isFetchingPrices;
     private DateTime _lastPriceFetchAttempt = DateTime.MinValue;
 
+    private const ImGuiColorEditFlags StyleSwatchFlags =
+        ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.NoLabel | ImGuiColorEditFlags.NoOptions |
+        ImGuiColorEditFlags.NoTooltip | ImGuiColorEditFlags.AlphaBar | ImGuiColorEditFlags.AlphaPreviewHalf;
+
     private void DrawBeastPickerPanel()
     {
-        ImGui.Text($"Prices as of: {Settings.BeastPrices.LastUpdated}");
+        ImGui.TextUnformatted($"Prices as of: {Settings.BeastPrices.LastUpdated}");
+        ImGui.TextDisabled("Text / Size / Circle / Radius are per-beast overrides: click or drag to change.");
+        ImGui.TextDisabled("Right-click a cell, or press x, to go back to the global setting.");
         ImGui.Separator();
 
-        if (!ImGui.BeginTable("##BeastPickerTable", 3,
+        if (!ImGui.BeginTable("##BeastPickerTable", 8,
                 ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersV |
                 ImGuiTableFlags.ScrollY | ImGuiTableFlags.SizingStretchProp,
                 new Vector2(0, 400)))
             return;
 
-        ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoSort, 24);
-        ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthFixed, 60);
-        ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch);
-        ImGui.TableSetupScrollFreeze(0, 1);
-        ImGui.TableHeadersRow();
-
-        var enabledBeasts = Settings.BeastPrices.EnabledBeasts;
-
-        foreach (var beast in _sortedBeastsByPrice)
+        // The HUD's ImGui has asserts on: a skipped EndTable() aborts the whole HUD.
+        try
         {
-            ImGui.TableNextRow();
-            ImGui.TableNextColumn();
+            ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoSort, 24);
+            ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthFixed, 50);
+            ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch);
+            ImGui.TableSetupColumn("Text", ImGuiTableColumnFlags.WidthFixed, 34);
+            ImGui.TableSetupColumn("Size", ImGuiTableColumnFlags.WidthFixed, 66);
+            ImGui.TableSetupColumn("Circle", ImGuiTableColumnFlags.WidthFixed, 40);
+            ImGui.TableSetupColumn("Radius", ImGuiTableColumnFlags.WidthFixed, 66);
+            ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 22);
+            ImGui.TableSetupScrollFreeze(0, 1);
+            ImGui.TableHeadersRow();
 
-            var isEnabled = enabledBeasts.Contains(beast.Name);
-            if (ImGui.Checkbox($"##{beast.Name}_chk", ref isEnabled))
+            var enabledBeasts = Settings.BeastPrices.EnabledBeasts;
+            var colors = Settings.MapRender.Colors;
+
+            foreach (var beast in _sortedBeastsByPrice)
             {
-                if (isEnabled) enabledBeasts.Add(beast.Name);
-                else enabledBeasts.Remove(beast.Name);
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
 
-                SavePersistedBeastPriceSettings();
+                var isEnabled = enabledBeasts.Contains(beast.Name);
+                if (ImGui.Checkbox($"##{beast.Name}_chk", ref isEnabled))
+                {
+                    if (isEnabled) enabledBeasts.Add(beast.Name);
+                    else enabledBeasts.Remove(beast.Name);
+
+                    SavePersistedBeastPriceSettings();
+                }
+
+                ImGui.TableNextColumn();
+                ImGui.TextUnformatted(TryGetBeastPriceText(beast.Name, out var priceText) ? priceText : "?");
+
+                ImGui.TableNextColumn();
+                if (isEnabled)
+                    ImGui.TextColored(EnabledBeastTextColor, beast.Name);
+                else
+                    ImGui.TextDisabled(beast.Name);
+
+                var style = GetBeastStyleOrNull(beast.Name);
+
+                ImGui.TableNextColumn();
+                DrawBeastStyleColorCell(
+                    $"##text_{beast.Name}",
+                    beast.Name,
+                    style?.TextColor,
+                    colors.WorldBeastColor.Value,
+                    "Text color",
+                    "world labels, large map labels and the tracked beasts window",
+                    (s, value) => s.TextColor = value);
+
+                ImGui.TableNextColumn();
+                DrawBeastStyleFontSizeCell(beast.Name, style);
+
+                ImGui.TableNextColumn();
+                DrawBeastStyleColorCell(
+                    $"##circle_{beast.Name}",
+                    beast.Name,
+                    style?.CircleColor,
+                    colors.WorldBeastCircleColor.Value,
+                    "Circle color",
+                    "the ground circle (the capture circle colors still show while it is netted)",
+                    (s, value) => s.CircleColor = value);
+
+                ImGui.TableNextColumn();
+                DrawBeastStyleRadiusCell(beast.Name, style);
+
+                ImGui.TableNextColumn();
+                if (style is { IsEmpty: false })
+                {
+                    if (ImGui.SmallButton($"x##reset_{beast.Name}"))
+                    {
+                        UpdateBeastStyle(beast.Name, s =>
+                        {
+                            s.TextColor = null;
+                            s.FontSize = null;
+                            s.CircleColor = null;
+                            s.CircleRadius = null;
+                        });
+                    }
+
+                    DrawItemTooltip("Reset this beast to the global settings.");
+                }
             }
+        }
+        finally
+        {
+            ImGui.EndTable();
+        }
+    }
 
-            ImGui.TableNextColumn();
-            ImGui.Text(TryGetBeastPriceText(beast.Name, out var priceText) ? priceText : "?");
-
-            ImGui.TableNextColumn();
-            if (isEnabled)
-                ImGui.TextColored(EnabledBeastTextColor, beast.Name);
-            else
-                ImGui.TextDisabled(beast.Name);
+    private void DrawBeastStyleColorCell(
+        string id,
+        string beastName,
+        string overrideColor,
+        SharpDX.Color globalColor,
+        string what,
+        string appliesTo,
+        Action<BeastStyle, string> setOverride)
+    {
+        var hasOverride = TryParseStyleColor(overrideColor, out var customColor);
+        var value = BeastsHelpers.ToImGuiColor(hasOverride ? customColor : globalColor);
+        if (ImGui.ColorEdit4(id, ref value, StyleSwatchFlags))
+        {
+            var picked = FormatStyleColor(new SharpDX.Color(value.X, value.Y, value.Z, value.W));
+            UpdateBeastStyle(beastName, s => setOverride(s, picked));
         }
 
-        ImGui.EndTable();
+        if (hasOverride && ImGui.IsItemClicked(ImGuiMouseButton.Right))
+        {
+            UpdateBeastStyle(beastName, s => setOverride(s, null));
+        }
+
+        DrawItemTooltip(hasOverride
+            ? $"{what} for {appliesTo}: custom {FormatStyleColor(customColor)}.\nRight-click to use the global color again."
+            : $"{what} for {appliesTo}: global setting.\nClick to pick a color for this beast only.");
+    }
+
+    private void DrawBeastStyleFontSizeCell(string beastName, BeastStyle style)
+    {
+        var hasOverride = style?.FontSize != null;
+        var value = hasOverride ? ClampFontSize(style.FontSize.Value) : Settings.MapRender.Layout.WorldLabelFontSize.Value;
+        ImGui.SetNextItemWidth(-1);
+        if (ImGui.DragInt($"##size_{beastName}", ref value, 0.2f, MinFontSize, MaxFontSize,
+                hasOverride ? "%d px" : "%d (def)", ImGuiSliderFlags.AlwaysClamp))
+        {
+            var picked = ClampFontSize(value);
+            UpdateBeastStyle(beastName, s => s.FontSize = picked);
+        }
+
+        if (hasOverride && ImGui.IsItemClicked(ImGuiMouseButton.Right))
+        {
+            UpdateBeastStyle(beastName, s => s.FontSize = null);
+        }
+
+        var layout = Settings.MapRender.Layout;
+        var mapLabels = Settings.MapRender.LargeMapLabels;
+        DrawItemTooltip(hasOverride
+            ? $"Font size for world and large map labels: custom {value} px.\nRight-click to use the global sizes again."
+            : $"Font size: global setting (world labels {layout.WorldLabelFontSize.Value} px, large map labels {mapLabels.FontSize.Value} px).\nDrag sideways, or Ctrl+click to type, to set a size for this beast only.");
+    }
+
+    private void DrawBeastStyleRadiusCell(string beastName, BeastStyle style)
+    {
+        var hasOverride = style?.CircleRadius != null;
+        var value = hasOverride ? ClampCircleRadius(style.CircleRadius.Value) : Settings.MapRender.Layout.WorldBeastCircleRadius.Value;
+        ImGui.SetNextItemWidth(-1);
+        if (ImGui.DragFloat($"##radius_{beastName}", ref value, 2f, MinCircleRadius, MapRenderLayoutSettings.MaxCircleRadius,
+                hasOverride ? "%.0f" : "%.0f (def)", ImGuiSliderFlags.AlwaysClamp))
+        {
+            var picked = ClampCircleRadius(value);
+            UpdateBeastStyle(beastName, s => s.CircleRadius = picked);
+        }
+
+        if (hasOverride && ImGui.IsItemClicked(ImGuiMouseButton.Right))
+        {
+            UpdateBeastStyle(beastName, s => s.CircleRadius = null);
+        }
+
+        DrawItemTooltip(hasOverride
+            ? $"Ground circle radius: custom {value:0} world units.\nRight-click to use the global radius again."
+            : $"Ground circle radius: global setting ({Settings.MapRender.Layout.WorldBeastCircleRadius.Value:0} world units).\nDrag sideways, or Ctrl+click to type, to set a size for this beast only.");
+    }
+
+    private static void DrawItemTooltip(string text)
+    {
+        if (!ImGui.IsItemHovered() || !ImGui.BeginTooltip())
+        {
+            return;
+        }
+
+        try
+        {
+            ImGui.TextUnformatted(text);
+        }
+        finally
+        {
+            ImGui.EndTooltip();
+        }
     }
 
     private void SelectAllPriceDataBeasts()

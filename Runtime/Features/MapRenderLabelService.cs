@@ -20,7 +20,6 @@ internal sealed record MapRenderLabelCallbacks(
     Func<BeastCaptureState, Color> GetWorldBeastCircleColor,
     Func<Color> GetTrackedWindowBeastColor,
     Func<string, BeastCaptureState, (string PrimaryText, string SecondaryText)> BuildPreviewMapMarkerTexts,
-    Func<string, BeastCaptureState, (string PrimaryText, string SecondaryText)> BuildMapMarkerTexts,
     Func<float> GetWorldBeastCircleRadius,
     Func<float> GetWorldBeastCircleFillOpacityPercent,
     Func<float> GetWorldBeastCircleOutlineThickness,
@@ -33,20 +32,6 @@ internal sealed class MapRenderLabelService
     public MapRenderLabelService(MapRenderLabelCallbacks callbacks)
     {
         _callbacks = callbacks ?? throw new ArgumentNullException(nameof(callbacks));
-    }
-
-    public void DrawMapMarker(string beastName, BeastCaptureState captureState, Vector2 pos)
-    {
-        var (primaryText, secondaryText) = _callbacks.BuildMapMarkerTexts(beastName, captureState);
-
-        DrawMapLabel(
-            primaryText,
-            secondaryText,
-            pos,
-            captureState != BeastCaptureState.None && _callbacks.GetReplaceNameAndPriceWithStatusText()
-                ? _callbacks.GetDisplayedCaptureStatusColor(captureState)
-                : _callbacks.GetMapMarkerTextColor(),
-            _callbacks.GetDisplayedCaptureStatusColor(captureState));
     }
 
     public void DrawPreviewWorldLabel(string beastName, BeastCaptureState captureState)
@@ -137,7 +122,8 @@ internal sealed class MapRenderLabelService
 
     private void DrawPreviewCircle(ImDrawListPtr drawList, Vector2 center, float configuredRadius, BeastCaptureState captureState)
     {
-        var radius = 8f + configuredRadius / 200f * 18f;
+        // The preview box is small: radii past 200 world units draw at the largest preview size.
+        var radius = 8f + Math.Min(configuredRadius, 200f) / 200f * 18f;
         var circleColor = _callbacks.GetWorldBeastCircleColor(captureState);
 
         var outlineColor = BeastsHelpers.ToImGuiColorU32(circleColor);
@@ -184,10 +170,5 @@ internal sealed class MapRenderLabelService
 
         var secondaryPos = new Vector2(pos.X - secondarySize.X / 2f, primaryPos.Y + primarySize.Y + lineSpacing * 0.25f);
         drawList.AddText(secondaryPos, BeastsHelpers.ToImGuiColorU32(secondaryColor), secondaryText);
-    }
-
-    private void DrawMapLabel(string primaryText, string secondaryText, Vector2 pos, Color primaryColor, Color secondaryColor)
-    {
-        DrawCenteredLabel(ImGui.GetForegroundDrawList(), primaryText, secondaryText, pos, _callbacks.GetMapMarkerBackgroundColor(), primaryColor, secondaryColor);
     }
 }

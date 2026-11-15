@@ -68,11 +68,11 @@ internal sealed class MapRenderPresentationService
         BuildMarkerTexts($"{beastName} 1c", captureState, out primaryText, out secondaryText);
     }
 
-    public void BuildMapMarkerTexts(string beastName, BeastCaptureState captureState, out string primaryText, out string secondaryText)
+    public void BuildMapMarkerTexts(string beastName, BeastCaptureState captureState, bool includePrice, out string primaryText, out string secondaryText)
     {
-        var priceText = _callbacks.GetBeastPriceTextOrNull(beastName);
-        primaryText = !string.IsNullOrEmpty(priceText) ? $"{beastName} {priceText}" : beastName;
-        secondaryText = null;
+        var priceText = includePrice ? _callbacks.GetBeastPriceTextOrNull(beastName) : null;
+        var label = !string.IsNullOrEmpty(priceText) ? $"{beastName} {priceText}" : beastName;
+        BuildMarkerTexts(label, captureState, out primaryText, out secondaryText);
     }
 
     public Color GetWorldBeastColor(BeastCaptureState captureState)

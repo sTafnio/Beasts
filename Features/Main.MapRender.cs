@@ -29,9 +29,12 @@ public partial class Main
     private const double CameraAngle = 38.7 * Math.PI / 180;
     private static readonly float CameraAngleCos = (float)Math.Cos(CameraAngle);
     private static readonly float CameraAngleSin = (float)Math.Sin(CameraAngle);
-    private static readonly Vector2[] WorldCirclePoints = BeastsHelpers.CreateUnitCirclePoints(15, closeLoop: false);
+    private static readonly Vector2[] WorldCirclePoints = BeastsHelpers.CreateUnitCirclePoints(
+        global::Beasts.Runtime.Features.MapRenderState.WorldCirclePointsLength, closeLoop: false);
 
     private Vector2[] _worldCircleScreenPoints => MapRenderRuntime.WorldCircleScreenPoints;
+
+    private Vector2[] _worldCircleOutlinePoints => MapRenderRuntime.WorldCircleOutlinePoints;
 
     private void DrawInWorldBeasts(IReadOnlyList<TrackedBeastRenderInfo> beasts) => MapRenderBeastOverlays.DrawInWorldBeasts(beasts);
 
@@ -97,8 +100,8 @@ public partial class Main
 
     private Color GetDisplayedCaptureStatusColor(BeastCaptureState captureState) => MapRenderPresentation.GetDisplayedCaptureStatusColor(captureState);
 
-    private void BuildMapMarkerTexts(string beastName, BeastCaptureState captureState, out string primaryText, out string secondaryText) =>
-        MapRenderPresentation.BuildMapMarkerTexts(beastName, captureState, out primaryText, out secondaryText);
+    private void BuildMapMarkerTexts(string beastName, BeastCaptureState captureState, bool includePrice, out string primaryText, out string secondaryText) =>
+        MapRenderPresentation.BuildMapMarkerTexts(beastName, captureState, includePrice, out primaryText, out secondaryText);
 
     private Color GetWorldBeastColor(BeastCaptureState captureState) => MapRenderPresentation.GetWorldBeastColor(captureState);
 

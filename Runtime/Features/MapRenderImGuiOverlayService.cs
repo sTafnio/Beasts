@@ -11,7 +11,7 @@ internal sealed record MapRenderImGuiOverlayCallbacks(
     Action<string, BeastCaptureState> DrawPreviewMapLabel,
     Action<string, string, BeastCaptureState> DrawTrackedBeastPreviewRow,
     Action DrawPreviewCircles,
-    Func<Color> GetTrackedWindowBeastColor,
+    Func<string, Color> GetTrackedWindowBeastColor,
     Func<string, string> GetBeastPriceTextOrNull,
     Func<BeastCaptureState, Color> GetDisplayedCaptureStatusColor,
     Func<BeastCaptureState, string> GetDisplayedCaptureStatusText);
@@ -76,35 +76,43 @@ internal sealed class MapRenderImGuiOverlayService
             return;
         }
 
-        var trackedWindowBeastColor = BeastsHelpers.ToImGuiColor(_callbacks.GetTrackedWindowBeastColor());
-
         ImGui.SetNextWindowBgAlpha(0.6f);
         ImGui.Begin("##RareBeastTrackerWindow", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.AlwaysAutoResize);
-
-        if (ImGui.BeginTable("##TrackerTable", 2,
-                ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersV))
+        try
         {
-            ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthFixed, 52);
-            ImGui.TableSetupColumn("Beast", ImGuiTableColumnFlags.WidthStretch);
-
-            foreach (var beast in beasts)
+            if (ImGui.BeginTable("##TrackerTable", 2,
+                    ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersV))
             {
-                ImGui.TableNextRow();
-                ImGui.TableNextColumn();
-                ImGui.Text(_callbacks.GetBeastPriceTextOrNull(beast.BeastName) ?? "?");
-                ImGui.TableNextColumn();
-                ImGui.TextColored(trackedWindowBeastColor, beast.BeastName);
-                if (beast.CaptureState != BeastCaptureState.None)
+                try
                 {
-                    ImGui.SameLine(0, 0);
-                    ImGui.TextColored(BeastsHelpers.ToImGuiColor(_callbacks.GetDisplayedCaptureStatusColor(beast.CaptureState)),
-                        $" {_callbacks.GetDisplayedCaptureStatusText(beast.CaptureState)}");
+                    ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthFixed, 52);
+                    ImGui.TableSetupColumn("Beast", ImGuiTableColumnFlags.WidthStretch);
+
+                    foreach (var beast in beasts)
+                    {
+                        ImGui.TableNextRow();
+                        ImGui.TableNextColumn();
+                        ImGui.TextUnformatted(_callbacks.GetBeastPriceTextOrNull(beast.BeastName) ?? "?");
+                        ImGui.TableNextColumn();
+                        ImGui.TextColored(BeastsHelpers.ToImGuiColor(_callbacks.GetTrackedWindowBeastColor(beast.BeastName)), beast.BeastName);
+                        if (beast.CaptureState != BeastCaptureState.None)
+                        {
+                            ImGui.SameLine(0, 0);
+                            ImGui.TextColored(BeastsHelpers.ToImGuiColor(_callbacks.GetDisplayedCaptureStatusColor(beast.CaptureState)),
+                                $" {_callbacks.GetDisplayedCaptureStatusText(beast.CaptureState)}");
+                        }
+                    }
+                }
+                finally
+                {
+                    ImGui.EndTable();
                 }
             }
-
-            ImGui.EndTable();
         }
-
-        ImGui.End();
+        finally
+        {
+            // The HUD's ImGui has asserts on: a skipped End() aborts the whole HUD.
+            ImGui.End();
+        }
     }
 }

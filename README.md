@@ -1,7 +1,7 @@
 # Beasts
 
 > [!NOTE]
-> Fork of [poplug/Beasts](https://github.com/poplug/Beasts) — originally released by PoThePlug on [ownedcore](https://www.ownedcore.com/forums/mmo/path-of-exile/poe-bots-programs/1001716-exileapi-poehelper-poehud-plugin-beasts-easily-find-profitable-beasts.html).
+> Fork of [getterattr/Beasts](https://github.com/getterattr/Beasts), which is a fork of [poplug/Beasts](https://github.com/poplug/Beasts) — originally released by PoThePlug on [ownedcore](https://www.ownedcore.com/forums/mmo/path-of-exile/poe-bots-programs/1001716-exileapi-poehelper-poehud-plugin-beasts-easily-find-profitable-beasts.html).
 
 An ExileApi overlay plugin for Path of Exile. Highlights valuable Bestiary beasts as you clear maps.
 
@@ -9,6 +9,14 @@ An ExileApi overlay plugin for Path of Exile. Highlights valuable Bestiary beast
 - Annotates each beast with its current poe.ninja value.
 - Shows prices on captured beast items in your inventory, stash, and the Bestiary panel.
 - Copies a search regex to your clipboard when you open the Bestiary panel, so matching captures are pre-filtered - optionally auto-pastes it into the search field.
+
+## Changes in this fork
+
+- **Unique beasts are tracked again.** Black Mórrigan is a unique map boss now, and the plugin only looked at rare monsters, so it never showed up. Unique beasts (Black Mórrigan, the spirit bosses) are picked up again.
+- **Beast names on the large map (Tab).** *Markers & Prices → Large Map Labels*: on/off, price, an optional background box, text color, font size, height offset and padding. Beasts that walked out of range stay labelled at their last known position.
+- **Per-beast styles.** The *Price Data → Tracked Beasts* table has Text, Size, Circle and Radius columns: give any beast its own name color, font size, ground circle color and circle size. Right-click a cell (or press **x**) to go back to the global setting. Text color and size apply to world labels, large map labels and the tracked beasts window.
+- **Bigger, smoother ground circles.** The circle radius goes up to 800 (was 200) and the circle is drawn with more segments.
+- **Font size for world labels.** *Markers & Prices → Layout → World Label Font Size*.
 
 ## Install
 
@@ -23,7 +31,7 @@ An ExileApi overlay plugin for Path of Exile. Highlights valuable Bestiary beast
 1. Open [ExileApi](https://github.com/exApiTools/ExileApi-Compiled).
 2. Open the `PluginUpdater` plugin.
 3. Click the Add tab.
-4. Paste `https://github.com/getterattr/Beasts` into Repository URL.
+4. Paste `https://github.com/sTafnio/Beasts` into Repository URL.
 5. Click Clone.
 6. Either restart ExileApi, or open ExileApi Core settings, scroll down, and press Reload Plugins.
 
@@ -39,7 +47,7 @@ An ExileApi overlay plugin for Path of Exile. Highlights valuable Bestiary beast
 
 1. Open the Beasts settings panel in the ExileApi menu and toggle **Enabled**.
 2. Under **Price Data**, set your current league name (must match exactly, e.g. `Mirage`) and press **Refresh Prices** to pull the latest values from poe.ninja.
-3. Under **Price Data**, curate your **Tracked Beasts** list. Use **Select 15c+** for a sensible default, or hand-pick.
-4. Under **Markers & Prices**, tune overlay colours, capture-status text, and layout.
+3. Under **Price Data**, curate your **Tracked Beasts** list. Use **Select 15c+** for a sensible default, or hand-pick. The Text / Size / Circle / Radius columns set per-beast styles.
+4. Under **Markers & Prices**, tune overlay colours, capture-status text, layout, and the large map labels.
 5. Under **Bestiary Clipboard**, decide whether the generated regex just copies to the clipboard or also auto-pastes into the Bestiary search field when the panel opens.
 6. Toggle **Auto-Hide Overlays** at the top level if you want the overlays to hide automatically in hideout/town or when any UI panel (inventory, stash, atlas, Bestiary) is open.

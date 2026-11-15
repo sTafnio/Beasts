@@ -67,7 +67,7 @@ public partial class Main
             DrawPreviewMapLabel,
             DrawTrackedBeastPreviewRow,
             DrawPreviewCircles,
-            GetTrackedWindowBeastColor,
+            GetBeastTrackedWindowColor,
             beastName => BeastLookup.TryGetBeastPriceText(beastName, out var priceText) ? priceText : null,
             GetDisplayedCaptureStatusColor,
             GetDisplayedCaptureStatusText));
@@ -80,11 +80,12 @@ public partial class Main
             () => Settings.MapRender.CapturedText.ReplaceNameAndPriceWithStatusText.Value,
             () => Settings.MapRender.Colors.WorldPriceTextColor.Value,
             beastName => BeastLookup.TryGetBeastPriceText(beastName, out var priceText) ? priceText : null,
-            GetWorldBeastColor,
+            GetBeastWorldNameColor,
             GetDisplayedCaptureStatusText,
             GetDisplayedCaptureStatusColor,
-            GetWorldBeastCircleColor,
-            () => Settings.MapRender.Layout.WorldBeastCircleRadius.Value,
+            GetBeastCircleColor,
+            GetBeastCircleRadius,
+            beastName => GetBeastWorldFontSize(beastName),
             MapRenderDrawingPrimitives.DrawOutlinedText,
             MapRenderDrawingPrimitives.DrawFilledCircleInWorld));
 
@@ -92,10 +93,10 @@ public partial class Main
         new MapRenderLabelCallbacks(
             () => Settings.MapRender.Layout.WorldTextLineSpacing.Value,
             () => Settings.MapRender.Colors.WorldPriceTextColor.Value,
-            () => Settings.MapRender.Colors.MapMarkerBackgroundColor.Value,
-            () => Settings.MapRender.Colors.MapMarkerTextColor.Value,
-            () => Settings.MapRender.Layout.MapLabelPaddingX.Value,
-            () => Settings.MapRender.Layout.MapLabelPaddingY.Value,
+            () => Settings.MapRender.LargeMapLabels.BackgroundColor.Value,
+            () => Settings.MapRender.LargeMapLabels.TextColor.Value,
+            () => Settings.MapRender.LargeMapLabels.PaddingX.Value,
+            () => Settings.MapRender.LargeMapLabels.PaddingY.Value,
             () => Settings.MapRender.CapturedText.ReplaceNameAndPriceWithStatusText.Value,
             GetWorldBeastColor,
             GetDisplayedCaptureStatusText,
@@ -105,11 +106,6 @@ public partial class Main
             (beastName, captureState) =>
             {
                 BuildPreviewMapMarkerTexts(beastName, captureState, out var primaryText, out var secondaryText);
-                return (primaryText, secondaryText);
-            },
-            (beastName, captureState) =>
-            {
-                BuildMapMarkerTexts(beastName, captureState, out var primaryText, out var secondaryText);
                 return (primaryText, secondaryText);
             },
             () => Settings.MapRender.Layout.WorldBeastCircleRadius.Value,
@@ -124,10 +120,15 @@ public partial class Main
             () => Settings.MapRender.Layout.WorldBeastCircleOutlineThickness.Value,
             () => Settings.MapRender.Colors.WorldTextOutlineColor.Value,
             () => _worldCircleScreenPoints,
+            () => _worldCircleOutlinePoints,
             WorldCirclePoints,
             (text, position, color) => Graphics.DrawText(text, position, color, FontAlign.Center),
             (points, color) => Graphics.DrawConvexPolyFilled(points, color),
-            (points, color, thickness) => Graphics.DrawPolyLine(points, color, thickness)));
+            (points, color, thickness) => Graphics.DrawPolyLine(points, color, thickness),
+            (rect, color) => Graphics.DrawBox(rect, color),
+            text => Graphics.MeasureText(text),
+            scale => Graphics.SetTextScale(scale),
+            () => _baseFontHeight));
 
     private bool _isCurrentAreaTrackable
     {

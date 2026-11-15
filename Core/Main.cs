@@ -158,12 +158,33 @@ public partial class Main : BaseSettingsPlugin<Settings>
                     enabledBeastsArray.Values<string>().Where(x => !string.IsNullOrWhiteSpace(x)).Select(BeastData.CurrentName),
                     StringComparer.OrdinalIgnoreCase);
             }
+
+            if (beastPricesSection["BeastStyles"] is JObject beastStylesObject)
+            {
+                var styles = new Dictionary<string, BeastStyle>(StringComparer.OrdinalIgnoreCase);
+                foreach (var property in beastStylesObject.Properties())
+                {
+                    if (string.IsNullOrWhiteSpace(property.Name) || property.Value is not JObject styleObject) continue;
+                    var style = styleObject.ToObject<BeastStyle>();
+                    if (style is { IsEmpty: false })
+                    {
+                        styles[BeastData.CurrentName(property.Name)] = style;
+                    }
+                }
+
+                Settings.BeastPrices.BeastStyles = styles;
+            }
         }
         catch (Exception ex)
         {
             LogError("Failed to load persisted beast price settings", ex);
         }
     }
+
+    private static readonly Newtonsoft.Json.JsonSerializer BeastStyleSerializer = new()
+    {
+        NullValueHandling = Newtonsoft.Json.NullValueHandling.Ignore,
+    };
 
     private void SavePersistedBeastPriceSettings()
     {
@@ -176,6 +197,16 @@ public partial class Main : BaseSettingsPlugin<Settings>
             var beastPricesSection = root["BeastPrices"] as JObject ?? new JObject();
             beastPricesSection["LastUpdated"] = Settings.BeastPrices.LastUpdated;
             beastPricesSection["EnabledBeasts"] = new JArray(Settings.BeastPrices.EnabledBeasts.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+            var beastStylesObject = new JObject();
+            foreach (var (beastName, style) in Settings.BeastPrices.BeastStyles.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                if (style is { IsEmpty: false })
+                {
+                    beastStylesObject[beastName] = JObject.FromObject(style, BeastStyleSerializer);
+                }
+            }
+
+            beastPricesSection["BeastStyles"] = beastStylesObject;
             root["BeastPrices"] = beastPricesSection;
             File.WriteAllText(settingsPath, root.ToString());
         }
@@ -284,13 +315,13 @@ public partial class Main : BaseSettingsPlugin<Settings>
     public override void EntityAdded(Entity entity)
     {
         if (entity == null) return;
-        if (!IsRareBeast(entity)) return;
+        if (!IsCapturableBeast(entity)) return;
         if (!TryGetTrackedBeastNameCached(entity.Metadata, out _))
         {
             if (!string.IsNullOrWhiteSpace(entity.Metadata) &&
                 _loggedUnknownCapturableMetadata.Add(entity.Metadata))
             {
-                LogDebug($"Unrecognised rare capturable metadata: {entity.Metadata}");
+                LogDebug($"Unrecognised {entity.Rarity} capturable metadata: {entity.Metadata}");
             }
             return;
         }
@@ -334,7 +365,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
         {
             if (liveEntity?.IsValid != true) continue;
             if (_trackedBeastEntities.ContainsKey(liveEntity.Id)) continue;
-            if (!IsRareBeast(liveEntity)) continue;
+            if (!IsCapturableBeast(liveEntity)) continue;
             if (!TryGetTrackedBeastNameCached(liveEntity.Metadata, out _)) continue;
 
             _trackedBeastEntities[liveEntity.Id] = liveEntity;
@@ -565,6 +596,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
         var mapRender = Settings.MapRender;
 
         TryScheduleAutoPriceRefresh(now, beastPrices);
+        FlushBeastStylesIfDue(now);
 
         if (!AreOverlaysVisible())
             return;
@@ -572,20 +604,26 @@ public partial class Main : BaseSettingsPlugin<Settings>
         if (IsinMirage())
             return;
 
+        RefreshBaseFontHeight();
+
         IReadOnlyList<TrackedBeastRenderInfo> liveTrackedBeasts = Array.Empty<TrackedBeastRenderInfo>();
         if (mapRender.ShowBeastLabelsInWorld.Value)
         {
             liveTrackedBeasts = CollectTrackedBeastRenderInfo();
         }
 
+        var showLargeMapLabels = mapRender.LargeMapLabels.Show.Value;
         IReadOnlyList<TrackedBeastMapMarkerInfo> trackedBeastOverlays = Array.Empty<TrackedBeastMapMarkerInfo>();
-        if (mapRender.ShowTrackedBeastsWindow.Value)
+        if (mapRender.ShowTrackedBeastsWindow.Value || showLargeMapLabels)
         {
             trackedBeastOverlays = CollectTrackedBeastOverlayInfoThrottled(now);
         }
 
         if (mapRender.ShowBeastLabelsInWorld.Value && liveTrackedBeasts.Count > 0)
             DrawInWorldBeasts(liveTrackedBeasts);
+
+        if (showLargeMapLabels && trackedBeastOverlays.Count > 0)
+            DrawLargeMapLabels(trackedBeastOverlays);
 
         if (mapRender.ShowTrackedBeastsWindow.Value && trackedBeastOverlays.Count > 0)
             DrawTrackedBeastsWindow(trackedBeastOverlays);
@@ -756,9 +794,11 @@ public partial class Main : BaseSettingsPlugin<Settings>
         return true;
     }
 
-    private static bool IsRareBeast(Entity entity)
+    // Unique is accepted as well as Rare: Black Mórrigan (GullGoliathBestiary_, a MonsterMapBoss) now spawns as a
+    // unique, and so do unique beasts like the spirit bosses, so a Rare-only check silently dropped them.
+    private static bool IsCapturableBeast(Entity entity)
     {
-        return entity.Rarity == MonsterRarity.Rare &&
+        return entity.Rarity is MonsterRarity.Rare or MonsterRarity.Unique &&
                IsCapturableMonsterStat is { } capturableStat &&
                entity.Stats?.ContainsKey(capturableStat) == true;
     }
